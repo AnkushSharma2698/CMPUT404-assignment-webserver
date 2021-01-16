@@ -46,7 +46,7 @@ class RequestParser:
         # Convert request to a string first
         str_data = str(data, "utf-8").split("\r\n")
         if logging:
-            print(f"Request Recieved: {str_data}")
+            print("Request Received: {str_data}".format(str_data=str_data))
         # Parse Relevant Information
         method = RequestParser.parse_method(str_data[0])
         path = RequestParser.parse_path(str_data[0])
@@ -98,7 +98,7 @@ class Request:
     def getResponseHeaders(self):
         header_str = ""
         for k,v in self._response_headers.items():
-            header_str += f"{k}: {v}\r\n"
+            header_str += "{k}: {v}\r\n".format(k=k, v=v)
         return header_str
 
     def getResponseContent(self):
@@ -119,11 +119,16 @@ class Request:
     # Simply responsible for sending information, no processing should take place here
     def send(self, protocol):
         response = ""
-        status_line = f"{protocol} {self.getStatusCode()} {self._message}\r\n{self.getResponseHeaders()}\r\n"
+        status_line = "{protocol} {status_code} {message}\r\n{headers}\r\n".format(
+            protocol=protocol,
+            status_code=self.getStatusCode(),
+            message=self.getMessage(),
+            headers=self.getResponseHeaders()
+        )
         response += status_line
         response += self.getResponseContent()
         if logging:
-            print(f"Sending Response: {response.encode()}")
+            print("Sending Response: {response}".format(response=response.encode()))
         self._request.sendall(bytearray(response, "utf-8"))
 
 class MyWebServer(socketserver.BaseRequestHandler):
@@ -178,7 +183,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
             # Change directory into the www directory since that is the assumed base
             abs_path = os.getcwd() + "/www"+ request.getPath()
             if logging:
-                print(f"Absolute Path: {abs_path}")
+                print("Absolute Path: {abs_path}".format(abs_path=abs_path))
 
             # Based on the path, determine whether to serve up a specific index.html file or a specific html or css file
             if os.path.isdir(abs_path):
@@ -202,7 +207,11 @@ class MyWebServer(socketserver.BaseRequestHandler):
             request.setStatusCode(404)
             request.setMessage("Not Found")
         except MovedPermanentlyException:
-            fixed_addr = f"http://{self.server.server_address[0]}:{str(self.server.server_address[1])}{request.getPath()}/"
+            fixed_addr = "http://{host}:{port}{path}/".format(
+                host=self.server.server_address[0],
+                port=str(self.server.server_address[1]),
+                path=request.getPath()
+            )
             request.setResponseHeader("Content-Type", mime_types["html"])
             request.setResponseHeader("Location", fixed_addr)
             request.setResponseContent(
@@ -224,7 +233,6 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 "500 Internal Server Error"
                 "</h1>"
                 "<h3>"
-                f"{e}"
                 "</h3>"
                 "</body></html>"
             )
